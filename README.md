@@ -138,8 +138,43 @@ flight_booking_email_${booking_id}.txt
 
 1. Trabaja en equipo sobre este repositorio (o un fork/repo del equipo, según indique tu profesor).
 2. Implementa las misiones en el orden que prefieras — no son necesariamente secuenciales, pero autenticación (misión 3) es prerequisito para las misiones protegidas (4 y 5).
-3. Verifica cada endpoint con Postman/curl antes de darlo por completado, revisando que cumple **todos** los constraints listados.
+3. Verifica cada endpoint con la colección de Postman incluida (ver sección siguiente) antes de darlo por completado, revisando que cumple **todos** los constraints listados.
 4. Asegúrate de que el proyecto levante con Docker Compose + Maven Wrapper, y documenta cualquier variable de entorno necesaria (`.env.example`).
+
+---
+
+## Testing — Colección de Postman
+
+Este repositorio incluye una colección de Postman con **pruebas automáticas** (`tests/postman/`) que valida cada constraint descrito arriba contra tu API ya levantada. No revela cómo implementar nada — solo verifica el comportamiento observable (códigos de estado, forma de las respuestas, reglas de negocio).
+
+**Archivos:**
+
+- `tests/postman/Fly-Away-Travel.postman_collection.json` — la colección con todos los tests.
+- `tests/postman/Fly-Away-Travel.postman_environment.json` — environment con la variable `baseUrl` (por defecto `http://localhost:8080`).
+
+### Cómo usarla
+
+1. Levanta tu API localmente (`./mvnw spring-boot:run` o equivalente). Debe estar corriendo en el puerto que uses en `baseUrl`.
+2. Abre Postman → **Import** → arrastra ambos archivos JSON (`tests/postman/*.json`).
+3. Selecciona el environment **"Fly Away Travel - Local"** en la esquina superior derecha. Si tu API corre en otro puerto, edita la variable `baseUrl` del environment.
+4. Abre la colección → botón **Run** (Collection Runner) → corre **toda la colección, en orden** (no ejecutes requests individuales salteados: varios dependen de datos creados por requests anteriores — usuario registrado, token JWT, vuelo creado, reserva creada).
+5. Revisa los resultados: cada test indica en su nombre a qué constraint del README corresponde (ej. `[5.8] Reservar un vuelo sin asientos disponibles responde 400/409`) y por qué falló si no pasa.
+
+### Qué cubre cada carpeta
+
+| Carpeta | Qué verifica |
+|---|---|
+| `0. Setup` | Registra un usuario y hace login para obtener el JWT usado por el resto de tests. |
+| `1. Crear Vuelo` | Happy path + todos los constraints (formato de número de vuelo, fechas, asientos, unicidad, campos requeridos). |
+| `2. Registro de Usuarios` | Validaciones de email/nombre/password + que la respuesta solo exponga el `id` (uso de DTOs). |
+| `3. Autenticación` | Email desconocido, password incorrecta, campos faltantes, y formato exacto `{ "token": "<jwt>" }`. |
+| `4. Búsqueda de Vuelos` | Que el endpoint esté protegido (401/403 sin token) y que los 3 filtros (número, aerolínea, rango de fechas) funcionen. |
+| `5. Reservar Vuelo` | Protección del endpoint, auto-cálculo de datos del cliente, sobreventa, vuelos pasados, conflictos de horario, y el `GET /flight/book/{id}`. |
+| `6. Email de Confirmación` | **No se puede verificar por HTTP** (es un archivo en el filesystem del servidor) — este request solo imprime instrucciones de verificación manual en la pestaña *Test Results*: confirma que exista `flight_booking_email_${booking_id}.txt` con nombres, número de vuelo y fechas en ISO 8601. |
+
+> **Nota:** algunos endpoints aceptan más de un código de estado válido (ej. `400` o `409` para conflictos) porque el PDF no exige uno específico — cualquiera de los dos es correcto siempre que la operación se rechace.
+
+> También puedes correr la colección desde la terminal con [Newman](https://www.npmjs.com/package/newman) si prefieres integrarla a un script: `npx newman run tests/postman/Fly-Away-Travel.postman_collection.json -e tests/postman/Fly-Away-Travel.postman_environment.json`.
 
 ---
 
